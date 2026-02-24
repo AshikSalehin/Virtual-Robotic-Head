@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reactive Digital Humanoid - Debug v4.2</title>
+    <style>
+        body { 
+            background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%); 
+            color: #333; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            margin: 0; 
+            padding: 10px; 
+            font-family: 'Segoe UI', sans-serif; 
+            min-height: 100vh; 
+            overflow-x: hidden; 
+        }
+        
+        .main-container {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            justify-content: center;
+            width: 100%;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .robot-container, .video-container, .control-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 300px;
+        }
+        
+        .media-wrapper {
+            position: relative;
+            width: 960px;
+            height: 540px;
+            border-radius: 20px;
+            overflow: hidden;
+            filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
+            background: #000;
+        }
+        
+        canvas { 
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1);
+            display: block;
+        }
+        
+        .controls { 
+            margin-top: 15px; 
+            display: grid; 
+            grid-template-columns: repeat(5, 1fr); 
+            gap: 8px; 
+            max-width: 960px; 
+            padding: 15px; 
+            background: rgba(255,255,255,0.6); 
+            backdrop-filter: blur(10px);
+            border-radius: 15px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        
+        button { 
+            padding: 10px 5px; 
+            cursor: pointer; 
+            border: 1px solid #adc5d9; 
+            border-radius: 8px; 
+            background: #fff; 
+            color: #2c3e50; 
+            font-size: 11px; 
+            font-weight: 600; 
+            transition: 0.2s; 
+            text-transform: uppercase; 
+        }
+        
+        button:hover { background: #3498db; color: white; border-color: #3498db; }
+        button:active { transform: scale(0.92); }
+        
+        .section-title {
+            color: #2c3e50;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .video-controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .video-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .video-btn:hover {
+            background: linear-gradient(135deg, #2980b9, #21618c);
+            transform: translateY(-2px);
+        }
+        
+        .video-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            margin-top: 10px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .status.active {
+            background: rgba(46, 204, 113, 0.2);
+            color: #27ae60;
+        }
+        
+        .status.inactive {
+            background: rgba(231, 76, 60, 0.2);
+            color: #c0392b;
+        }
+        
+        .connection-status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 10;
+        }
+        
+        .connection-status.connected {
+            background: rgba(46, 204, 113, 0.9);
+            color: white;
+        }
+        
+        .connection-status.disconnected {
+            background: rgba(231, 76, 60, 0.9);
+            color: white;
+        }
+        
+        .expression-indicator {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 10;
+            display: none;
+        }
+        
+        .processing-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            display: none;
+            z-index: 10;
+        }
+        
+        .notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 10px;
+            background: white;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            display: none;
+            z-index: 1000;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        .notification.success {
+            border-left: 5px solid #2ecc71;
+        }
+        
+        .notification.error {
+            border-left: 5px solid #e74c3c;
+        }
+        
+        .notification.info {
+            border-left: 5px solid #3498db;
+        }
+        
+        .header {
+            width: 100%;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            margin: 0;
+            font-size: 28px;
+        }
+        
+        .header p {
+            color: #7f8c8d;
+            margin: 5px 0 20px 0;
+        }
+        
+        .control-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            width: 300px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .info-panel {
+            margin-top: 15px;
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            width: 100%;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .info-item {
+            margin: 8px 0;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .info-value {
+            color: #3498db;
+            font-family: monospace;
+        }
+        
+        .transcription-box {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            width: 100%;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .transcription-text {
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .interim {
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        
+        .final {
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        
+        .audio-player {
+            display: none;
+        }
+        
+        .debug-panel {
+            background: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        @media (max-width: 1200px) {
+            .main-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .media-wrapper {
+                width: 100%;
+                max-width: 960px;
+                height: 400px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .media-wrapper {
+                height: 300px;
+            }
+            
+            .controls {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🤖 Reactive Digital Humanoid - Debug v4.2</h1>
+        <p>Audio debug mode - Verbose logging enabled</p>
+    </div>
+
+    <div class="main-container">
+        <div class="robot-container">
+            <h2 class="section-title">Digital Humanoid</h2>
+            <div class="media-wrapper">
+                <canvas id="human" width="960" height="540"></canvas>
+                <div class="connection-status disconnected" id="connectionStatus">Disconnected</div>
+                <div class="expression-indicator" id="expressionIndicator">neutral</div>
+                <div class="processing-indicator" id="processingIndicator">Processing...</div>
+            </div>
+            <div class="controls">
+                <button onclick="setExpression('neutral')">Neutral</button>
+                <button onclick="setExpression('happy')">Happy</button>
+                <button onclick="setExpression('angry')">Angry</button>
+                <button onclick="setExpression('sad')">Sad</button>
+                <button onclick="setExpression('surprised')">Surprised</button>
+                <button onclick="setExpression('tensed')">Tensed</button>
+                <button onclick="setExpression('thinking')">Thinking</button>
+                <button onclick="setExpression('disgust')">Disgust</button>
+                <button onclick="toggleTalking()" id="talkBtn">Talk</button>
+                <button onclick="blink()">Blink</button>
+                <button onclick="toggleSmile()" id="smileBtn">Smile</button>
+                <button onclick="setExpression('lookUp')">Look Up</button>
+                <button onclick="setExpression('lookDown')">Look Down</button>
+                <button onclick="setExpression('lookLeft')">Look Left</button>
+                <button onclick="setExpression('lookRight')">Look Right</button>
+            </div>
+        </div>
+
+        <div class="video-container">
+            <h2 class="section-title">Robot Vision</h2>
+            <div class="media-wrapper">
+                <video id="webcam" autoplay playsinline></video>
+                <canvas id="faceCanvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none;"></canvas>
+            </div>
+            <div class="video-controls">
+                <button class="video-btn" id="startBtn" onclick="startCamera()">Start Camera</button>
+                <button class="video-btn" id="stopBtn" onclick="stopCamera()" disabled>Stop Camera</button>
+                <button class="video-btn" onclick="toggleAudio()" id="audioBtn">Start Audio</button>
+                <button class="video-btn" onclick="testConnection()">Test Backend</button>
+                <button class="video-btn" onclick="clearTranscript()">Clear Transcript</button>
+                <button class="video-btn" onclick="debugTest()" style="background: #9b59b6;">Debug Test</button>
+            </div>
+            <div id="status" class="status inactive">Camera Off</div>
+        </div>
+
+        <div class="control-panel">
+            <h2 class="section-title">Control Panel</h2>
+            <div class="info-panel">
+                <div class="info-item">
+                    <span class="info-label">WebSocket:</span>
+                    <span class="info-value" id="wsStatus">Disconnected</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Processing:</span>
+                    <span class="info-value" id="processingStatus">Idle</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Current Expression:</span>
+                    <span class="info-value" id="currentExpression">neutral</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Robot Talking:</span>
+                    <span class="info-value" id="talkingStatus">No</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Backend:</span>
+                    <span class="info-value" id="backendStatus">Unknown</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Audio Active:</span>
+                    <span class="info-value" id="audioStatus">No</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Audio Playing:</span>
+                    <span class="info-value" id="audioPlayingStatus">No</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Audio Queue:</span>
+                    <span class="info-value" id="queueStatus">0 items</span>
+                </div>
+            </div>
+            
+            <div class="transcription-box">
+                <h3 style="font-size: 14px; margin-bottom: 10px; color: #2c3e50;">Transcript</h3>
+                <div class="transcription-text" id="transcript"></div>
+            </div>
+            
+            Debug panel
+            <div class="debug-panel" style="visibility: hidden;">
+                <h4 style="margin: 0 0 10px 0; color: #ecf0f1;">Debug Log</h4>
+                <div id="debugLog"></div>
+            </div>
+            
+            <div style="margin-top: 20px; width: 100%;">
+                <button onclick="clearHistory()" style="width: 100%; margin-top: 10px; background: #e74c3c;">Clear Chat History</button>
+                <button onclick="stopTalking()" style="width: 100%; margin-top: 10px; background: #f39c12;">Stop Robot Speech</button>
+                <button onclick="manualTest()" style="width: 100%; margin-top: 10px; background: #9b59b6;">Manual Test</button>
+                <button onclick="simulateAudio()" style="width: 100%; margin-top: 10px; background: #1abc9c;">Simulate Audio</button>
+                <button onclick="clearDebug()" style="width: 100%; margin-top: 10px; background: #95a5a6;">Clear Debug</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden audio element -->
+    <audio id="audioPlayer" class="audio-player"></audio>
+    
+    <!-- Notification container -->
+    <div class="notification" id="notification"></div>
+
+    <script>
+    // DOM Elements
+    const canvas = document.getElementById("human");
+    const ctx = canvas.getContext("2d");
+    const video = document.getElementById("webcam");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const audioBtn = document.getElementById("audioBtn");
+    const statusDiv = document.getElementById("status");
+    const connectionStatus = document.getElementById("connectionStatus");
+    const expressionIndicator = document.getElementById("expressionIndicator");
+    const processingIndicator = document.getElementById("processingIndicator");
+    const notification = document.getElementById("notification");
+    const transcriptDiv = document.getElementById("transcript");
+    const audioPlayer = document.getElementById("audioPlayer");
+    const debugLog = document.getElementById("debugLog");
+
+    // State variables
+    let stream = null;
+    let audioStream = null;
+    let audioContext = null;
+    let microphone = null;
+    let processor = null;
+    let websocket = null;
+    let isAudioActive = false;
+    let isProcessing = false;
+    let logs = [];
+    let debugLogs = [];
+    let isRobotTalking = false;
+    let isManualTalking = false;
+    let audioSampleRate = 16000;
+    let chunkInterval = 250;
+    let audioInterval = null;
+    let lastTranscript = "";
+    let lastTranscriptTime = 0;
+
+    // Audio queue system
+    let audioQueue = [];
+    let isProcessingAudioQueue = false;
+    let shouldStopAudio = false;
+    let lastAudioStartedTime = 0;
+    let currentAudio = null;
+
+    // Robot state
+    let state = { 
+        mouthOpen: 2, 
+        mouthWidth: 60, 
+        mouthCurve: 0, 
+        browY: -75, 
+        browAngle: 0, 
+        eyeOpen: 1, 
+        headTilt: 0, 
+        irisY: 2, 
+        irisX: 0, 
+        blinkFactor: 1 
+    };
+    let target = {...state};
+    let isSmiling = false;
+    let talkCycle = 0;
+    let smileCycle = 0;
+    let lastExpression = "neutral";
+    let expressionTimeout = null;
+
+    // Available expressions
+    const expressions = {
+        neutral: { mouthOpen: 2, mouthWidth: 60, mouthCurve: 0, browY: -75, browAngle: 0, eyeOpen: 1, headTilt: 0, irisY: 2, irisX: 0 },
+        happy: { mouthOpen: 10, mouthWidth: 80, mouthCurve: 20, browY: -85, browAngle: -0.1, eyeOpen: 0.9, headTilt: 0.03, irisY: 2, irisX: 0 },
+        angry: { mouthOpen: 10, mouthWidth: 50, mouthCurve: -35, browY: -50, browAngle: 0.6, eyeOpen: 0.65, headTilt: -0.05, irisY: 2, irisX: 0 },
+        sad: { mouthOpen: 12, mouthWidth: 45, mouthCurve: -40, browY: -85, browAngle: -0.45, eyeOpen: 0.7, headTilt: 0.12, irisY: 2, irisX: 0 },
+        surprised: { mouthOpen: 40, mouthWidth: 40, mouthCurve: 0, browY: -100, browAngle: 0, eyeOpen: 1.2, headTilt: 0, irisY: 2, irisX: 0 },
+        tensed: { mouthOpen: 2, mouthWidth: 120, mouthCurve: -10, browY: -65, browAngle: 0.1, eyeOpen: 0.55, headTilt: 0, irisY: 2, irisX: 0 },
+        thinking: { mouthOpen: 2, mouthWidth: 50, mouthCurve: -5, browY: -85, browAngle: -0.2, eyeOpen: 1, headTilt: -0.15, irisY: 2, irisX: 0 },
+        disgust: { mouthOpen: 18, mouthWidth: 75, mouthCurve: -45, browY: -60, browAngle: 0.4, eyeOpen: 0.45, headTilt: 0.08, irisY: 2, irisX: 0 },
+        lookUp: { mouthOpen: 2, mouthWidth: 60, mouthCurve: 0, browY: -75, browAngle: 0, eyeOpen: 1, headTilt: 0, irisY: -8, irisX: 0 },
+        lookDown: { mouthOpen: 2, mouthWidth: 60, mouthCurve: 0, browY: -75, browAngle: 0, eyeOpen: 1, headTilt: 0, irisY: 12, irisX: 0 },
+        lookLeft: { mouthOpen: 2, mouthWidth: 60, mouthCurve: 0, browY: -75, browAngle: 0, eyeOpen: 1, headTilt: 0, irisY: 2, irisX: -8 },
+        lookRight: { mouthOpen: 2, mouthWidth: 60, mouthCurve: 0, browY: -75, browAngle: 0, eyeOpen: 1, headTilt: 0, irisY: 2, irisX: 8 }
+    };
+
+    // ============================================================================
+    // UTILITY FUNCTIONS
+    // ============================================================================
+
+    function log(message, type = "info") {
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = `[${timestamp}] ${message}`;
+        logs.unshift(logEntry);
+        if (logs.length > 50) logs.pop();
+        console.log(`[${type.toUpperCase()}] ${logEntry}`);
+        
+        // Add to debug panel
+        const debugEntry = document.createElement('div');
+        debugEntry.style.color = type === 'error' ? '#e74c3c' : 
+                                type === 'warn' ? '#f39c12' : '#3498db';
+        debugEntry.style.marginBottom = '2px';
+        debugEntry.textContent = logEntry;
+        debugLog.appendChild(debugEntry);
+        
+        // Keep debug log manageable
+        if (debugLog.children.length > 20) {
+            debugLog.removeChild(debugLog.firstChild);
+        }
+        
+        // Auto-scroll
+        debugLog.scrollTop = debugLog.scrollHeight;
+    }
+
+    function showNotification(message, type = "info") {
+        notification.textContent = message;
+        notification.className = `notification ${type}`;
+        notification.style.display = 'block';
+        
+        setTimeout(() => {
+            notification.style.display = 'none';
+        }, 3000);
+    }
+
+    function updateUIStatus() {
+        document.getElementById("wsStatus").textContent = 
+            websocket && websocket.readyState === WebSocket.OPEN ? "Connected" : "Disconnected";
+        document.getElementById("processingStatus").textContent = 
+            isProcessing ? "Processing..." : "Idle";
+        document.getElementById("currentExpression").textContent = lastExpression;
+        document.getElementById("talkingStatus").textContent = 
+            (isRobotTalking || isManualTalking || audioQueue.length > 0 || currentAudio) ? "Yes" : "No";
+        document.getElementById("audioStatus").textContent = isAudioActive ? "Yes" : "No";
+        document.getElementById("audioPlayingStatus").textContent = currentAudio ? "Yes" : "No";
+        document.getElementById("queueStatus").textContent = `${audioQueue.length} items`;
+        
+        // Update backend status
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            document.getElementById('backendStatus').textContent = 'Connected';
+            document.getElementById('backendStatus').style.color = '#27ae60';
+        } else {
+            document.getElementById('backendStatus').textContent = 'Disconnected';
+            document.getElementById('backendStatus').style.color = '#e74c3c';
+        }
+        
+        // Update connection status
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            connectionStatus.textContent = 'Connected';
+            connectionStatus.className = 'connection-status connected';
+        } else {
+            connectionStatus.textContent = 'Disconnected';
+            connectionStatus.className = 'connection-status disconnected';
+        }
+    }
+
+    function addToTranscript(text, isInterim = false) {
+        const div = document.createElement('div');
+        div.className = isInterim ? 'interim' : 'final';
+        div.textContent = text;
+        
+        if (isInterim) {
+            // Remove previous interim
+            const prevInterim = transcriptDiv.querySelector('.interim');
+            if (prevInterim) {
+                transcriptDiv.removeChild(prevInterim);
+            }
+        }
+        
+        transcriptDiv.appendChild(div);
+        transcriptDiv.scrollTop = transcriptDiv.scrollHeight;
+        
+        // Keep only last 10 entries
+        const entries = transcriptDiv.querySelectorAll('div');
+        if (entries.length > 10) {
+            transcriptDiv.removeChild(entries[0]);
+        }
+    }
+
+    // ============================================================================
+    // AUDIO PLAYBACK FUNCTIONS
+    // ============================================================================
+
+    function playBase64Audio(base64Data, expression = "neutral", cacheKey = null, sentenceIndex = null) {
+        return new Promise((resolve, reject) => {
+            log(`🎵 Attempting to play audio (${base64Data.length} chars, index: ${sentenceIndex})`);
+            
+            if (currentAudio) {
+                log("Stopping previous audio");
+                currentAudio.pause();
+                currentAudio = null;
+            }
+            
+            isRobotTalking = true;
+            lastAudioStartedTime = Date.now();
+            updateUIStatus();
+            
+            // Create data URL
+            const dataUrl = `data:audio/wav;base64,${base64Data}`;
+            log(`Created data URL (${dataUrl.length} chars)`);
+            
+            // Create and play audio
+            currentAudio = new Audio(dataUrl);
+            
+            // Set expression for this audio
+            if (expression) {
+                log(`Setting expression to: ${expression}`);
+                setExpression(expression, false);
+                lastExpression = expression;
+                expressionIndicator.textContent = expression;
+                expressionIndicator.style.display = 'block';
+            }
+            
+            // Set up event handlers
+            currentAudio.onplay = () => {
+                log("✅ Audio started playing");
+            };
+            
+            currentAudio.onended = () => {
+                log(`✅ Audio playback complete (${cacheKey})`);
+                currentAudio = null;
+                isRobotTalking = false;
+                updateUIStatus();
+                
+                // Send completion message if we have the info
+                if (cacheKey && sentenceIndex !== null && websocket && websocket.readyState === WebSocket.OPEN) {
+                    websocket.send(JSON.stringify({
+                        type: 'audio_done',
+                        cache_key: cacheKey,
+                        sentence_index: sentenceIndex
+                    }));
+                }
+                
+                resolve();
+            };
+            
+            currentAudio.onerror = (e) => {
+                log(`❌ Audio playback error: ${e.target.error ? e.target.error.message : 'Unknown error'}`, "error");
+                console.error("Audio error details:", e);
+                currentAudio = null;
+                isRobotTalking = false;
+                updateUIStatus();
+                reject(e);
+            };
+            
+            currentAudio.onpause = () => {
+                log("Audio paused");
+                updateUIStatus();
+            };
+            
+            // Try to play
+            const playPromise = currentAudio.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    log(`❌ Play() failed: ${error.message}`, "error");
+                    currentAudio = null;
+                    isRobotTalking = false;
+                    updateUIStatus();
+                    reject(error);
+                });
+            }
+        });
+    }
+
+    async function processAudioQueue() {
+        if (isProcessingAudioQueue || audioQueue.length === 0) {
+            return;
+        }
+        
+        isProcessingAudioQueue = true;
+        log(`Processing audio queue (${audioQueue.length} items)`);
+        
+        while (audioQueue.length > 0 && !shouldStopAudio) {
+            const audioItem = audioQueue[0];
+            
+            try {
+                log(`🔊 Playing queued audio: ${audioItem.text?.substring(0, 50)}...`);
+                await playBase64Audio(
+                    audioItem.audio_data,
+                    audioItem.expression,
+                    audioItem.cache_key,
+                    audioItem.sentence_index
+                );
+                
+                // Remove from queue after successful playback
+                audioQueue.shift();
+                updateUIStatus();
+                
+                // Small delay between audio items
+                if (audioQueue.length > 0) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+            } catch (error) {
+                log(`❌ Error playing queued audio: ${error.message}`, "error");
+                audioQueue.shift(); // Remove problematic item
+                updateUIStatus();
+                
+                // Small delay before next attempt
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+        
+        isProcessingAudioQueue = false;
+        shouldStopAudio = false;
+        
+        // If queue is empty, reset robot state
+        if (audioQueue.length === 0 && !currentAudio) {
+            isRobotTalking = false;
+            if (!isProcessing) {
+                setExpression("neutral", false);
+                expressionIndicator.style.display = 'none';
+            }
+            updateUIStatus();
+        }
+        
+        log("Audio queue processing complete");
+    }
+
+    function clearAudioQueue() {
+        log("🗑️ Clearing audio queue");
+        audioQueue = [];
+        shouldStopAudio = true;
+        
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio = null;
+        }
+        
+        isProcessingAudioQueue = false;
+        isRobotTalking = false;
+        updateUIStatus();
+    }
+
+    // ============================================================================
+    // WEBSOCKET COMMUNICATION
+    // ============================================================================
+
+    function initWebSocket() {
+        const wsUrl = 'ws://localhost:8000/ws';
+        
+        log(`Connecting to ${wsUrl}...`);
+        websocket = new WebSocket(wsUrl);
+        
+        websocket.onopen = () => {
+            log("✅ WebSocket connection established");
+            connectionStatus.textContent = 'Connected';
+            connectionStatus.className = 'connection-status connected';
+            showNotification("Connected to backend", "success");
+            updateUIStatus();
+            
+            // Send hello message
+            websocket.send(JSON.stringify({
+                type: 'hello',
+                client: 'frontend_debug_v4.2'
+            }));
+        };
+        
+        websocket.onmessage = async (event) => {
+            try {
+                log(`📨 Raw message: ${event.data.substring(0, 200)}...`);
+                const message = JSON.parse(event.data);
+                log(`📨 Received: ${message.type}`);
+                
+                // Debug: log entire message structure
+                console.log("Full message:", message);
+                
+                switch (message.type) {
+                    case 'system':
+                        log(`Backend initialized: ${message.message}`);
+                        showNotification("Backend ready", "success");
+                        break;
+                        
+                    case 'talking':
+                        log(`🤖 Robot talking: ${message.expression}`);
+                        isRobotTalking = true;
+                        setExpression(message.expression, false);
+                        lastExpression = message.expression;
+                        
+                        expressionIndicator.textContent = message.expression;
+                        expressionIndicator.style.display = 'block';
+                        
+                        if (expressionTimeout) clearTimeout(expressionTimeout);
+                        expressionTimeout = setTimeout(() => {
+                            expressionIndicator.style.display = 'none';
+                        }, 2000);
+                        break;
+                        
+                    case 'audio_talking':
+                        log(`🔊 Robot audio received: ${message.text?.substring(0, 50)}...`);
+                        console.log("Audio message details:", {
+                            has_audio: !!message.audio_data,
+                            audio_length: message.audio_data?.length,
+                            expression: message.expression,
+                            sentence_index: message.sentence_index,
+                            cache_key: message.cache_key
+                        });
+                        
+                        // Always add to queue
+                        log(`📥 Adding to queue (index: ${message.sentence_index})`);
+                        
+                        audioQueue.push({
+                            audio_data: message.audio_data,
+                            expression: message.expression || 'neutral',
+                            text: message.text,
+                            cache_key: message.cache_key,
+                            sentence_index: message.sentence_index || 0,
+                            timestamp: Date.now()
+                        });
+                        
+                        // Sort queue by sentence index
+                        audioQueue.sort((a, b) => a.sentence_index - b.sentence_index);
+                        
+                        // Start processing if not already
+                        if (!isProcessingAudioQueue) {
+                            setTimeout(processAudioQueue, 100);
+                        }
+                        
+                        updateUIStatus();
+                        break;
+                        
+                    case 'stop':
+                        log("🤖 Robot paused");
+                        clearAudioQueue();
+                        expressionIndicator.style.display = 'none';
+                        break;
+                        
+                    case 'listening':
+                        log("🔊 Backend ready to listen");
+                        isProcessing = false;
+                        processingIndicator.style.display = 'none';
+                        break;
+                        
+                    case 'interim_transcription':
+                        log(`🎤 Interim: "${message.text}"`);
+                        addToTranscript(message.text, true);
+                        lastTranscriptTime = Date.now();
+                        break;
+                        
+                    case 'transcription':
+                        log(`🎤 Final: "${message.text}"`);
+                        addToTranscript(message.text, false);
+                        lastTranscriptTime = Date.now();
+                        showNotification(`You: "${message.text}"`, "info");
+                        break;
+                        
+                    case 'llm_response':
+                        log(`🤖 Response: "${message.text}"`);
+                        const cleanText = message.text.replace(/\[.*?\]/g, '').trim();
+                        showNotification(`Robot: "${cleanText}"`, "success");
+                        break;
+                        
+                    case 'pipeline_complete':
+                        log("✅ Response complete");
+                        isProcessing = false;
+                        processingIndicator.style.display = 'none';
+                        break;
+                        
+                    case 'error':
+                        log(`❌ Error: ${message.message}`, "error");
+                        showNotification(message.message, "error");
+                        isProcessing = false;
+                        clearAudioQueue();
+                        processingIndicator.style.display = 'none';
+                        break;
+                        
+                    case 'stopped':
+                        log("⏹️ TTS stopped by backend");
+                        clearAudioQueue();
+                        break;
+                        
+                    case 'history_cleared':
+                        log("🧹 History cleared");
+                        showNotification("Conversation history cleared", "success");
+                        break;
+                        
+                    default:
+                        log(`Unknown message type: ${message.type}`, "warn");
+                        console.log("Unknown message:", message);
+                }
+                
+                updateUIStatus();
+                
+            } catch (error) {
+                log(`Error parsing message: ${error.message}`, "error");
+                console.error("Parse error details:", error);
+                console.error("Raw data:", event.data);
+            }
+        };
+        
+        websocket.onclose = () => {
+            log("WebSocket connection closed");
+            connectionStatus.textContent = 'Disconnected';
+            connectionStatus.className = 'connection-status disconnected';
+            updateUIStatus();
+            
+            // Try to reconnect after 2 seconds
+            setTimeout(initWebSocket, 2000);
+        };
+        
+        websocket.onerror = (error) => {
+            log(`WebSocket error: ${error}`, "error");
+        };
+    }
+
+    // ============================================================================
+    // AUDIO PROCESSING
+    // ============================================================================
+
+    async function startAudio() {
+        try {
+            log("🎤 Starting microphone...");
+            
+            // Request microphone access
+            audioStream = await navigator.mediaDevices.getUserMedia({ 
+                audio: {
+                    sampleRate: audioSampleRate,
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
+            
+            isAudioActive = true;
+            audioBtn.textContent = 'Stop Audio';
+            audioBtn.style.background = 'linear-gradient(135deg, #e74c3c, #c0392b)';
+            
+            // Setup audio context
+            audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                sampleRate: audioSampleRate
+            });
+            
+            log(`✅ Audio context: ${audioContext.sampleRate}Hz`);
+            
+            // Create processor for audio data
+            microphone = audioContext.createMediaStreamSource(audioStream);
+            processor = audioContext.createScriptProcessor(4096, 1, 1);
+            microphone.connect(processor);
+            processor.connect(audioContext.destination);
+            
+            // Buffer for audio data
+            let audioBuffer = [];
+            const bufferDuration = chunkInterval / 1000;
+            const bufferSize = Math.floor(audioSampleRate * bufferDuration);
+            
+            // Audio processing callback
+            processor.onaudioprocess = (event) => {
+                try {
+                    if (currentAudio || audioQueue.length > 0) {
+                        // Skip processing if robot is talking (avoid echo)
+                        return;
+                    }
+                    
+                    const inputData = event.inputBuffer.getChannelData(0);
+                    
+                    // Add to buffer
+                    for (let i = 0; i < inputData.length; i++) {
+                        audioBuffer.push(inputData[i]);
+                    }
+                    
+                    // Send chunk when buffer is full
+                    if (audioBuffer.length >= bufferSize) {
+                        sendAudioChunk(audioBuffer.slice(0, bufferSize));
+                        audioBuffer = audioBuffer.slice(bufferSize);
+                    }
+                    
+                } catch (e) {
+                    log(`Audio process error: ${e.message}`, "error");
+                }
+            };
+            
+            log("✅ Microphone started - streaming audio");
+            showNotification("Microphone active - streaming to backend", "success");
+            
+        } catch (err) {
+            log(`❌ Microphone error: ${err.message}`, "error");
+            isAudioActive = false;
+            audioBtn.textContent = 'Start Audio';
+            audioBtn.style.background = 'linear-gradient(135deg, #3498db, #2980b9)';
+            showNotification("Microphone access denied", "error");
+        }
+    }
+
+    function sendAudioChunk(audioBuffer) {
+        if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+            return;
+        }
+        
+        try {
+            // Convert float32 to int16
+            const int16Data = new Int16Array(audioBuffer.length);
+            for (let i = 0; i < audioBuffer.length; i++) {
+                int16Data[i] = Math.max(-32768, Math.min(32767, audioBuffer[i] * 32768));
+            }
+            
+            // Convert to base64
+            const bytes = new Uint8Array(int16Data.buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            const base64 = btoa(binary);
+            
+            // Send to backend
+            websocket.send(JSON.stringify({
+                type: 'audio',
+                data: base64,
+                bytes: int16Data.byteLength,
+                sample_rate: audioSampleRate
+            }));
+            
+            updateUIStatus();
+            
+        } catch (e) {
+            log(`Error sending audio: ${e.message}`, "error");
+        }
+    }
+
+    function stopAudio() {
+        if (processor) {
+            processor.disconnect();
+            processor = null;
+        }
+        
+        if (microphone) {
+            microphone.disconnect();
+            microphone = null;
+        }
+        
+        if (audioStream) {
+            audioStream.getTracks().forEach(track => track.stop());
+            audioStream = null;
+        }
+        
+        if (audioContext && audioContext.state !== 'closed') {
+            audioContext.close();
+        }
+        
+        isAudioActive = false;
+        audioBtn.textContent = 'Start Audio';
+        audioBtn.style.background = 'linear-gradient(135deg, #3498db, #2980b9)';
+        
+        updateUIStatus();
+        
+        showNotification("Microphone stopped", "info");
+    }
+
+    function toggleAudio() {
+        if (isAudioActive) {
+            stopAudio();
+        } else {
+            startAudio();
+        }
+    }
+
+    // ============================================================================
+    // ROBOT FUNCTIONS
+    // ============================================================================
+
+    function setExpression(key, sendToServer = true) {
+        log(`Setting expression: ${key}`);
+        
+        if (sendToServer && websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.send(JSON.stringify({
+                type: 'expression',
+                expression: key
+            }));
+        }
+        
+        lastExpression = key;
+        
+        if (expressions[key]) {
+            Object.assign(target, expressions[key]);
+            log(`Expression target set: ${JSON.stringify(expressions[key])}`);
+        } else {
+            log(`Warning: Unknown expression: ${key}`, "warn");
+        }
+        
+        updateUIStatus();
+    }
+
+    function toggleTalking() {
+        isManualTalking = !isManualTalking;
+        isSmiling = false;
+        
+        if (isManualTalking) {
+            document.getElementById('talkBtn').innerText = "Stop";
+            talkCycle = 0;
+        } else {
+            document.getElementById('talkBtn').innerText = "Talk";
+            Object.assign(target, expressions.neutral);
+        }
+    }
+
+    function toggleSmile() {
+        isSmiling = !isSmiling;
+        isManualTalking = false;
+        document.getElementById('smileBtn').innerText = isSmiling ? "Stop" : "Smile";
+        document.getElementById('talkBtn').innerText = "Talk";
+        
+        if (isSmiling) {
+            smileCycle = 0;
+            target.mouthCurve = 30;
+            target.browY = -95;
+            target.eyeOpen = 0.9;
+        } else {
+            Object.assign(target, expressions.neutral);
+        }
+    }
+
+    function blink() {
+        state.blinkFactor = 0;
+        setTimeout(() => state.blinkFactor = 1, 100);
+    }
+
+    function lerp(a, b, n) { return a + (b - a) * n; }
+
+    function update() {
+        for (let k in state) {
+            if(k !== 'blinkFactor') state[k] = lerp(state[k], target[k], 0.1);
+        }
+        
+        if (isManualTalking) {
+            talkCycle += 0.06;
+            state.mouthOpen = 12 + Math.sin(talkCycle * 2.5) * 12;
+            state.mouthWidth = 60 + Math.cos(talkCycle * 1.5) * 8;
+        } else if (isRobotTalking || currentAudio) {
+            talkCycle += 0.06;
+            state.mouthOpen = 12 + Math.sin(talkCycle * 2.5) * 12;
+            state.mouthWidth = 60 + Math.cos(talkCycle * 1.5) * 8;
+        }
+        
+        if (isSmiling) {
+            smileCycle += 0.08;
+            const beat = Math.sin(smileCycle * 3);
+            state.mouthOpen = 5 + Math.max(0, beat) * 25;
+            state.mouthWidth = 90 + Math.max(0, beat) * 20;
+            state.mouthCurve = 30 + Math.max(0, beat) * 15;
+        }
+        
+        if (Math.random() > 0.994) blink();
+    }
+
+    // ============================================================================
+    // CAMERA FUNCTIONS
+    // ============================================================================
+
+    async function startCamera() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    width: { ideal: 960 },
+                    height: { ideal: 540 },
+                    aspectRatio: 16/9,
+                    facingMode: "user"
+                } 
+            });
+            video.srcObject = stream;
+            
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            statusDiv.textContent = "Camera Active";
+            statusDiv.className = "status active";
+            
+            showNotification("Camera started", "success");
+            
+        } catch (err) {
+            log(`Camera error: ${err.message}`, "error");
+            statusDiv.textContent = "Camera Access Denied";
+            statusDiv.className = "status inactive";
+            showNotification("Failed to access camera", "error");
+        }
+    }
+
+    function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            video.srcObject = null;
+            stream = null;
+            
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            statusDiv.textContent = "Camera Off";
+            statusDiv.className = "status inactive";
+            showNotification("Camera stopped", "info");
+        }
+    }
+
+    // ============================================================================
+    // DEBUG FUNCTIONS
+    // ============================================================================
+
+    async function checkBackendConnectivity() {
+        try {
+            const response = await fetch('/api/health');
+            const data = await response.json();
+            
+            log(`Backend: ${data.status}, v${data.version}`);
+            document.getElementById('backendStatus').textContent = 'Connected';
+            document.getElementById('backendStatus').style.color = '#27ae60';
+            
+            return true;
+        } catch (error) {
+            log(`Backend check failed: ${error.message}`, "error");
+            document.getElementById('backendStatus').textContent = 'Unreachable';
+            document.getElementById('backendStatus').style.color = '#e74c3c';
+            return false;
+        }
+    }
+
+    function testConnection() {
+        checkBackendConnectivity();
+    }
+
+    function debugTest() {
+        log("Running debug test...");
+        
+        // Test expression
+        setExpression('happy', false);
+        setTimeout(() => setExpression('neutral', false), 1000);
+        
+        // Test manual talking
+        isManualTalking = true;
+        setTimeout(() => isManualTalking = false, 2000);
+        
+        // Test audio queue
+        log("Audio queue test - should see robot mouth move");
+    }
+
+    function simulateAudio() {
+        log("Simulating audio reception...");
+        
+        // Create a simple test audio message
+        const testMessage = {
+            type: 'audio_talking',
+            audio_data: 'UklGRnoAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoAAABsb3c=', // Very short silent audio
+            expression: 'happy',
+            text: 'Test audio simulation',
+            cache_key: 'test_123',
+            sentence_index: 0
+        };
+        
+        // Simulate receiving message
+        const event = { data: JSON.stringify(testMessage) };
+        websocket.onmessage(event);
+    }
+
+    function stopTalking() {
+        clearAudioQueue();
+        isRobotTalking = false;
+        isManualTalking = false;
+        
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.send(JSON.stringify({
+                type: 'stop_speaking'
+            }));
+            showNotification("Stop command sent", "info");
+        } else {
+            showNotification("Not connected", "error");
+        }
+    }
+
+    function clearHistory() {
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.send(JSON.stringify({
+                type: 'clear_history'
+            }));
+            showNotification("History cleared", "success");
+        }
+    }
+
+    function clearTranscript() {
+        transcriptDiv.innerHTML = '';
+        showNotification("Transcript cleared", "info");
+    }
+
+    function clearDebug() {
+        debugLog.innerHTML = '';
+        logs = [];
+    }
+
+    function manualTest() {
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.send(JSON.stringify({
+                type: 'test',
+                message: 'Manual test from frontend debug'
+            }));
+            showNotification("Test message sent", "info");
+        } else {
+            showNotification("WebSocket not connected", "error");
+        }
+    }
+
+    // ============================================================================
+    // DRAWING AND ANIMATION
+    // ============================================================================
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw background
+        const bgGradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        bgGradient.addColorStop(0, '#667eea');
+        bgGradient.addColorStop(0.5, '#764ba2');
+        bgGradient.addColorStop(1, '#f093fb');
+        ctx.fillStyle = bgGradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.save();
+        ctx.translate(canvas.width / 2, 280);
+
+        // 1. Body & Chest
+        ctx.fillStyle = "#2c3e50"; 
+        ctx.beginPath();
+        ctx.moveTo(-180, 450);
+        ctx.bezierCurveTo(-220, 220, 220, 220, 180, 450);
+        ctx.fill();
+
+        // 2. Neck (Connected to body)
+        ctx.fillStyle = "#d19b77";
+        ctx.fillRect(-45, 100, 90, 100);
+        ctx.fillStyle = "rgba(0,0,0,0.15)";
+        ctx.fillRect(-45, 100, 90, 40); // Shadow under chin
+
+        // 3. Head Tilt Group
+        ctx.rotate(state.headTilt);
+
+        // Back Hair
+        ctx.fillStyle = "#2c1e16";
+        ctx.beginPath();
+        ctx.moveTo(-155, 100);
+        ctx.bezierCurveTo(-180, -320, 180, -320, 155, 100);
+        ctx.lineTo(170, 400);
+        ctx.lineTo(-170, 400);
+        ctx.fill();
+
+        // Ears
+        const drawEar = (side) => {
+            ctx.fillStyle = "#d19b77";
+            ctx.beginPath();
+            ctx.ellipse(side * 125, 15, 15, 30, side * 0.1, 0, Math.PI * 2);
+            ctx.fill();
+        };
+        drawEar(-1); drawEar(1);
+
+        // Face Skin
+        let skin = ctx.createRadialGradient(0, 0, 50, 0, 0, 250);
+        skin.addColorStop(0, "#fbdac0"); skin.addColorStop(1, "#d19b77");
+        ctx.fillStyle = skin;
+        ctx.beginPath();
+        ctx.moveTo(0, -180);
+        ctx.bezierCurveTo(135, -170, 155, -20, 120, 120);
+        ctx.bezierCurveTo(80, 215, -80, 215, -120, 120);
+        ctx.bezierCurveTo(-155, -20, -135, -170, 0, -180);
+        ctx.fill();
+
+        // Realistic Nose
+        ctx.save();
+        ctx.shadowBlur = 10; ctx.shadowColor = "rgba(0,0,0,0.1)";
+        ctx.fillStyle = "rgba(160, 100, 80, 0.2)";
+        ctx.beginPath();
+        ctx.moveTo(0, -10);
+        ctx.bezierCurveTo(15, 50, 25, 65, 0, 70);
+        ctx.bezierCurveTo(-25, 65, -15, 50, 0, -10);
+        ctx.fill();
+        // Nostrils
+        ctx.fillStyle = "rgba(0,0,0,0.2)";
+        ctx.beginPath(); ctx.arc(-8, 65, 3, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(8, 65, 3, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+
+        // Eyes
+        const drawEye = (x) => {
+            ctx.save(); ctx.translate(x, -35);
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.ellipse(0, 0, 28, 18 * state.eyeOpen * state.blinkFactor, 0, 0, Math.PI * 2);
+            ctx.fill();
+            if (state.blinkFactor > 0.2) {
+                ctx.save(); ctx.clip();
+                ctx.fillStyle = "#4a3728"; ctx.beginPath(); ctx.arc(state.irisX, state.irisY, 11, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "black"; ctx.beginPath(); ctx.arc(state.irisX, state.irisY, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.restore();
+            }
+            ctx.restore();
+        };
+        drawEye(-52); drawEye(52);
+
+        // Brows
+        ctx.strokeStyle = "#3e2723"; ctx.lineWidth = 6; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(-90, state.browY + (state.browAngle * 20)); ctx.quadraticCurveTo(-55, state.browY - 12, -20, state.browY - (state.browAngle * 20)); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(20, state.browY - (state.browAngle * 20)); ctx.quadraticCurveTo(55, state.browY - 12, 90, state.browY + (state.browAngle * 20)); ctx.stroke();
+
+        // Lips
+        const cy = 125, w = state.mouthWidth / 2, h = state.mouthOpen, c = state.mouthCurve;
+        ctx.fillStyle = "#5a1a1a"; ctx.beginPath(); ctx.moveTo(-w, cy); ctx.quadraticCurveTo(0, cy - h - 5, w, cy); ctx.quadraticCurveTo(0, cy + h + 15, -w, cy); ctx.fill();
+        ctx.fillStyle = "#e07a7a"; ctx.beginPath(); ctx.moveTo(-w - 5, cy);
+        ctx.bezierCurveTo(-w/2, cy-18-c, -10, cy-22-c, 0, cy-15-c);
+        ctx.bezierCurveTo(10, cy-22-c, w/2, cy-18-c, w + 5, cy);
+        ctx.quadraticCurveTo(0, cy-h, -w-5, cy); ctx.fill();
+        ctx.fillStyle = "#c05a5a"; ctx.beginPath(); ctx.moveTo(-w - 5, cy);
+        ctx.quadraticCurveTo(0, cy + h + 28 + c, w + 5, cy); ctx.quadraticCurveTo(0, cy + h, -w-5, cy); ctx.fill();
+
+        // Front Hair
+        ctx.fillStyle = "#3d2b1f";
+        ctx.beginPath();
+        ctx.moveTo(-140, -100);
+        ctx.bezierCurveTo(-100, -260, 100, -260, 140, -100);
+        ctx.bezierCurveTo(160, 100, 150, 300, 130, 400);
+        ctx.lineTo(90, 400);
+        ctx.bezierCurveTo(115, 100, 115, -150, 0, -145); // Parting
+        ctx.bezierCurveTo(-115, -150, -115, 100, -90, 400);
+        ctx.lineTo(-130, 400);
+        ctx.bezierCurveTo(-160, 100, -150, 50, -140, -100);
+        ctx.fill();
+
+        ctx.restore();
+        update();
+        requestAnimationFrame(draw);
+    }
+
+    // ============================================================================
+    // INITIALIZATION
+    // ============================================================================
+
+    window.addEventListener('load', () => {
+        log("Page loaded, initializing...");
+        
+        // Initialize WebSocket
+        initWebSocket();
+        
+        // Start animation
+        draw();
+        
+        // Check backend
+        setTimeout(checkBackendConnectivity, 1000);
+        
+        log("Initialization complete");
+        log("Click 'Debug Test' to test expressions and audio");
+        showNotification("System ready. Debug mode active.", "info");
+    });
+
+    window.addEventListener('beforeunload', () => {
+        if (websocket && websocket.readyState === WebSocket.OPEN) {
+            websocket.send(JSON.stringify({ type: 'client_disconnecting' }));
+            websocket.close();
+        }
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+        stopAudio();
+        clearAudioQueue();
+    });
+    </script>
+</body>
+</html>
